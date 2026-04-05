@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cologne Picker</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #111;
+  color: #f5f5f5;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  transition: background 0.6s ease;
+}
+
+.card {
+  background: rgba(0,0,0,0.7);
+  padding: 25px;
+  border-radius: 14px;
+  width: 360px;
+}
+
+label { display:block; margin-top:14px; }
+
+input[type="range"], select { width:100%; }
+
+.value { float:right; opacity:0.7; }
+
+.output {
+  margin-top:20px;
+  padding:14px;
+  background:#000;
+  border-radius:10px;
+  text-align:center;
+}
+
+/* Toggle */
+.switch {
+  position: relative;
+  width: 52px;
+  height: 28px;
+  float:right;
+}
+.switch input { display:none; }
+
+.slider {
+  position:absolute;
+  inset:0;
+  background:#444;
+  border-radius:28px;
+}
+
+.slider:before {
+  content:"";
+  position:absolute;
+  height:22px;
+  width:22px;
+  left:3px;
+  bottom:3px;
+  background:white;
+  border-radius:50%;
+  transition:0.3s;
+}
+
+input:checked + .slider {
+  background:#2ecc71;
+}
+
+input:checked + .slider:before {
+  transform: translateX(24px);
+}
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h2>Cologne Picker</h2>
+
+  <label>Temp Low <span class="value" id="lowVal"></span>
+    <input type="range" min="20" max="100" value="60" id="low">
+  </label>
+
+  <label>Temp High <span class="value" id="highVal"></span>
+    <input type="range" min="20" max="100" value="80" id="high">
+  </label>
+
+  <label>Start <span class="value" id="startVal"></span>
+    <input type="range" min="7" max="22" value="14" id="start">
+  </label>
+
+  <label>End <span class="value" id="endVal"></span>
+    <input type="range" min="7" max="22" value="18" id="end">
+  </label>
+
+  <label>Formality <span class="value" id="formVal"></span>
+    <input type="range" min="0" max="100" value="50" id="form">
+  </label>
+
+  <label>Season
+    <select id="season">
+      <option>Spring</option>
+      <option selected>Summer</option>
+      <option>Fall</option>
+      <option>Winter</option>
+    </select>
+  </label>
+
+  <label>Environment: <span id="envLabel">Indoor</span>
+    <span class="switch">
+      <input type="checkbox" id="env">
+      <span class="slider"></span>
+    </span>
+  </label>
+
+  <div class="output" id="result">Recommended: —</div>
+</div>
+
+<script>
+const colognes = [
+  {name:"Perry Ellis Pure Blue", temp:[70,95], time:[7,16], form:[10,40], color:"#2b6cb0", pref:-2},
+  {name:"Rayhaan Aquatic", temp:[70,95], time:[7,18], form:[20,50], color:"#2ec4b6", pref:1},
+  {name:"Prada Carbon", temp:[55,75], time:[7,20], form:[40,70], color:"#111", pref:2},
+  {name:"Burberry London", temp:[35,55], time:[7,19], form:[50,80], color:"#6b3e2e", pref:2},
+  {name:"D&G Light Blue", temp:[75,95], time:[7,19], form:[20,45], color:"#f4f1ea", pref:1},
+  {name:"Hawas", temp:[70,90], time:[7,19], form:[30,60], color:"#6a0dad", pref:2},
+  {name:"Guerlain Ideal", temp:[45,65], time:[17,21], form:[55,85], color:"#c4a484", pref:0},
+  {name:"SWY Intensely", temp:[40,65], time:[17,22], form:[50,80], color:"#5a3e2b", pref:2},
+  {name:"Polo Red", temp:[45,70], time:[7,19], form:[35,60], color:"#b11226", pref:1},
+  {name:"Afnan 9PM", temp:[45,70], time:[20,22], form:[40,65], color:"#111", pref:1},
+  {name:"Valentino Born in Roma", temp:[60,80], time:[16,20], form:[45,75], color:"#ff4da6", pref:2},
+  {name:"Mahogany Teakwood", temp:[45,70], time:[16,22], form:[40,70], color:"#5c3a21", pref:1},
+  {name:"Spicebomb Night Vision", temp:[35,60], time:[18,22], form:[55,85], color:"#39ff14", pref:-1},
+  {name:"Montblanc Explorer", temp:[50,75], time:[7,19], form:[40,70], color:"#111", pref:-1},
+  {name:"Club de Nuit", temp:[50,75], time:[7,19], form:[50,80], color:"#111", pref:1},
+  {name:"Azzaro TMW", temp:[40,65], time:[19,22], form:[65,90], color:"#111", pref:2},
+  {name:"Versace Eros", temp:[60,80], time:[16,20], form:[40,65], color:"#2ecc71", pref:1},
+  {name:"Bentley Intense", temp:[30,55], time:[19,22], form:[65,90], color:"#5a3e2b", pref:-2},
+  {name:"JPG Elixir", temp:[40,65], time:[20,22], form:[60,90], color:"#d4af37", pref:2}
+];
+
+function score(v,min,max){
+  if(v>=min && v<=max) return 1;
+  return Math.max(0,1-Math.min(Math.abs(v-min),Math.abs(v-max))/20);
+}
+
+function format(h){
+  let p = h>=12?"PM":"AM";
+  let hr = h%12||12;
+  return hr+" "+p;
+}
+
+function pick(){
+  let lo=+low.value, hi=+high.value;
+  if(lo>hi)[lo,hi]=[hi,lo];
+
+  let s=+start.value, e=+end.value, f=+form.value;
+
+  lowVal.textContent=lo+"°";
+  highVal.textContent=hi+"°";
+  startVal.textContent=format(s);
+  endVal.textContent=format(e);
+  formVal.textContent=f+"%";
+
+  envLabel.textContent=env.checked?"Outdoor":"Indoor";
+
+  let best={score:-999};
+
+  colognes.forEach(c=>{
+    let sc =
+      score(lo,...c.temp)+
+      score(hi,...c.temp)+
+      score(s,...c.time)+
+      score(e,...c.time)+
+      score(f,...c.form)*1.5;
+
+    // preference weighting (MOST IMPORTANT)
+    sc += c.pref * 1.5;
+
+    // seasonal adjustments
+    if(season.value==="Summer" && c.temp[1]<65) sc-=1;
+    if(season.value==="Winter" && c.temp[0]>70) sc-=1;
+
+    if(sc>best.score) best={...c,score:sc};
+  });
+
+  result.textContent="Recommended: "+best.name;
+  document.body.style.background=best.color;
+}
+
+[low,high,start,end,form,env,season].forEach(el=>el.oninput=pick);
+
+pick();
+</script>
+
+</body>
+</html>
